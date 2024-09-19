@@ -3,29 +3,25 @@ use itertools::Itertools;
 fn main() {
     let input: Vec<&str> = include_str!("../../data/day2.txt").lines().map(|str| str.trim()).collect();
 
-    let mut all_twos = 0; 
-    let mut all_threes = 0; 
+    let mut twos = 0; 
+    let mut threes = 0; 
 
 
     for item in &input {
         let counts = item.chars().counts();
         if counts.values().any(|&count| count == 2) {
-            all_twos += 1;
+            twos += 1;
         }
         if counts.values().any(|&count| count == 3) {
-            all_threes += 1;
+            threes += 1;
         }
     }
 
-
-    for combination in input.iter().combinations(2) {
-        if count_differing_chars(combination[0], combination[1]) == 1 {
-            println!("common letters: {}", find_common_letters(combination[0], combination[1]));
-            break;
-        }
+    if let Some(combination) = input.iter().combinations(2).find(|combo| count_differing_chars(combo[0], combo[1]) == 1) {
+        println!("common letters: {}", find_common_letters(combination[0], combination[1]));
     }
 
-    println!("cheskum: {}", all_twos * all_threes);
+    println!("cheskum: {}", twos * threes);
 }
 
 fn count_differing_chars(s1: &str, s2: &str) -> usize {
