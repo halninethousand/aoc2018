@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, NaiveDate, NaiveTime, Duration, Timelike};
+use chrono::{NaiveDateTime, NaiveDate, NaiveTime, Timelike};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -22,6 +22,7 @@ fn process_chronology(chronology: Vec<(NaiveDateTime, Event)>) {
     let mut current_guard: String = String::new();
     let mut current_sleep_time: Option<NaiveDateTime> = None;
     let mut sleep_schedule: HashMap<String, [u32; 60]> = HashMap::new();
+    let mut total_sleep_time: HashMap<String, u32> = HashMap::new();
 
     for item in chronology {
         match item.1 {
@@ -30,15 +31,15 @@ fn process_chronology(chronology: Vec<(NaiveDateTime, Event)>) {
                     if !current_guard.is_empty() {
                         let sleep_start_minute = sleep_time.minute();
                         let wake_minute = item.0.minute();
-
                         let minute_count = sleep_schedule.entry(current_guard.clone()).or_insert([0; 60]);
                         for minute in sleep_start_minute..wake_minute {
                             minute_count[minute as usize] += 1;
                         }
+                        *total_sleep_time.entry(current_guard.clone()).or_insert(0) += wake_minute - sleep_start_minute;
                     }
                     current_sleep_time = None;
                 } else {
-                    println!("Error: Wake event without prior Sleep event.");
+                    panic!("Error: Wake event without prior Sleep event.");
                 }
             },
             Event::Sleep => {
@@ -47,32 +48,64 @@ fn process_chronology(chronology: Vec<(NaiveDateTime, Event)>) {
             Event::Shift(guard_id) => {
                 current_guard = guard_id;
             },
-            _ => println!("Don't care"),
         }
     }
 
-    // Step 2: Find the guard who slept the most on a single minute
-    let mut guard_most_asleep = String::new();
-    let mut most_slept_minute = 0;
-    let mut most_slept_count = 0;
+    // part 1
+    let guard_most_asleep = total_sleep_time
+        .iter()
+        .max_by_key(|&(_, &total_time)| total_time)
+        .map(|(guard_id, _)| guard_id.clone())
+        .unwrap();
+
+    let minutes = sleep_schedule.get(&guard_most_asleep).unwrap();
+    let (most_slept_minute, &most_slept_count) = minutes
+        .iter()
+        .enumerate()
+        .max_by_key(|&(_, &count)| count)
+        .unwrap();
+
+    println!("Part 1:");
+    println!(
+        "Guard #{} slept the most (total {} minutes). Most frequent minute: {} ({} times)",
+        guard_most_asleep, 
+        total_sleep_time[&guard_most_asleep],
+        most_slept_minute, 
+        most_slept_count
+    );
+
+    println!(
+        "Answer: {}",
+        guard_most_asleep.parse::<usize>().unwrap() * most_slept_minute
+    );
+
+    // part 2
+    let mut max_frequency = 0;
+    let mut max_guard = String::new();
+    let mut max_minute = 0;
 
     for (guard_id, minutes) in sleep_schedule.iter() {
         for (minute, &count) in minutes.iter().enumerate() {
-            if count > most_slept_count {
-                most_slept_minute = minute;
-                most_slept_count = count;
-                guard_most_asleep = guard_id.clone();
+            if count > max_frequency {
+                max_frequency = count;
+                max_guard = guard_id.clone();
+                max_minute = minute;
             }
         }
     }
 
-    if !guard_most_asleep.is_empty() {
-        println!(
-            "Guard #{} slept the most on minute {} ({} times) {}",
-            guard_most_asleep, most_slept_minute, most_slept_count, guard_most_asleep.parse::<usize>().unwrap() * most_slept_minute
-        );
-    }
+    println!("\nPart 2:");
+    println!(
+        "Guard #{} was most frequently asleep on minute {} ({} times)",
+        max_guard, max_minute, max_frequency
+    );
+
+    println!(
+        "Answer: {}",
+        max_guard.parse::<usize>().unwrap() * max_minute
+    );
 }
+
 fn init_and_sort(input: Vec<&str>) -> Vec<(NaiveDateTime, Event)> {
     let mut chronology: Vec<(NaiveDateTime, Event)> = vec![];
 
